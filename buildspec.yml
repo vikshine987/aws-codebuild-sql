@@ -1,0 +1,21 @@
+version: 0.2
+phases:
+ install:
+   commands:
+     - echo "Installing Oracle Instant Client"
+     - yum install -y oracle-instantclient-release-el8
+     - yum install -y oracle-instantclient-basic oracle-instantclient-sqlplus
+ pre_build:
+   commands:
+     - echo "Fetching EC2 SSH Key from SSM"
+     - aws ssm get-parameter --name "oracle-ec2-ssh-key" --with-decryption --query "Parameter.Value" --output text > ec2_key.pem
+     - chmod 400 ec2_key.pem
+ build:
+   commands:
+     - echo "Running SQL scripts on Oracle EC2 via SSH"
+     - |
+       ssh -o StrictHostKeyChecking=no -i ec2_key.pem ec2-user@3.87.203.247 << 'EOF'
+       echo "Connecting to Oracle DB and running SQL"
+       sqlplus dev_user/dev_pass123@localhost/EBDEV @/home/oracle/prod-ec2-test/sql/migrate_schema.sql
+       sqlplus dev_user/dev_pass123@localhost/EBDEV @/home/oracle/prod-ec2-test/sql/load_data.sql
+       EOF
